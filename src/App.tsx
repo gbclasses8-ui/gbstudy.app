@@ -3,7 +3,7 @@ import {
   testFirestoreConnection 
 } from './lib/firebase';
 import { Platform, AppConfig, Banner } from './types';
-import { VIDEO_PLATFORMS, DEFAULT_BANNER_IMAGE } from './data/videoPlatforms';
+import { VIDEO_PLATFORMS } from './data/videoPlatforms';
 import { 
   subscribePlatforms, subscribeConfig, subscribeBanners, DEFAULT_CONFIG, INITIAL_BANNERS 
 } from './services/dbService';
@@ -98,8 +98,8 @@ export default function App() {
     setTelegramModalOpen(false);
   };
 
-  // 5-tap gesture on profile icon or logo to trigger admin PIN prompt
-  const handleProfileTap = () => {
+  // 6-click gesture specifically on top-left GB STUDY logo to trigger admin PIN prompt
+  const handleLogoTap = () => {
     if (adminUnlocked) {
       setAdminPanelOpen(true);
       return;
@@ -111,13 +111,13 @@ export default function App() {
 
     tapCountRef.current += 1;
 
-    if (tapCountRef.current >= 5) {
+    if (tapCountRef.current >= 6) {
       tapCountRef.current = 0;
       setAdminPinModalOpen(true);
     } else {
       tapTimeoutRef.current = setTimeout(() => {
         tapCountRef.current = 0;
-      }, 3000);
+      }, 3500);
     }
   };
 
@@ -135,44 +135,29 @@ export default function App() {
     setAdminPanelOpen(false);
   };
 
-  // Open platform URL based on its configured OpenMode
+  // Open platform securely inside app - URL and external browser options are strictly hidden
   const handleOpenPlatform = (platform: Platform) => {
     if (!platform.url) return;
-
-    const mode = platform.openMode || 'new_tab';
-
-    if (mode === 'internal') {
-      // In-App Webview Browser inside app
-      setActiveBrowserPlatform(platform);
-    } else if (mode === 'same_tab') {
-      // Open in same window / tab
-      window.location.href = platform.url;
-    } else {
-      // External in new tab
-      window.open(platform.url, '_blank', 'noopener,noreferrer');
-    }
+    setActiveBrowserPlatform(platform);
   };
 
   // Open banner URL based on its configured OpenMode
   const handleOpenBanner = (banner: Banner) => {
     const url = banner.actionUrl || config.telegramUrl || 'https://t.me/GBFreestudy';
-    const mode = banner.openMode || 'new_tab';
-
-    if (mode === 'internal') {
-      setActiveBrowserPlatform({
-        id: banner.id,
-        name: banner.title || 'GB STUDY Promotion',
-        url,
-        description: 'Promotional Banner Link',
-        status: 'active',
-        order: 0,
-        openMode: 'internal',
-      });
-    } else if (mode === 'same_tab') {
-      window.location.href = url;
-    } else {
+    if (url.includes('t.me')) {
       window.open(url, '_blank', 'noopener,noreferrer');
+      return;
     }
+
+    setActiveBrowserPlatform({
+      id: banner.id,
+      name: banner.title || 'GB STUDY Special Batch',
+      url,
+      description: 'Promotional Banner Content',
+      status: 'active',
+      order: 0,
+      openMode: 'internal',
+    });
   };
 
   // Filtered platforms
@@ -192,16 +177,16 @@ export default function App() {
         <SplashScreen onComplete={() => setShowSplash(false)} />
       )}
 
-      {/* Floating Toast notification: "Admin option unlocked" */}
+      {/* Floating Toast notification: "Admin unlocked" */}
       {showToast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#162231] text-white text-xs font-semibold px-4 py-2 rounded-full border border-slate-700 shadow-2xl animate-in fade-in slide-in-from-top duration-200">
           Admin option unlocked
         </div>
       )}
 
-      {/* Header with requested icon on top left */}
+      {/* Header with 6-click admin trigger on top-left logo */}
       <Header
-        onProfileClick={handleProfileTap}
+        onLogoClick={handleLogoTap}
         adminUnlocked={adminUnlocked}
         onOpenAdmin={() => setAdminPanelOpen(true)}
         onOpenTelegram={() => setTelegramModalOpen(true)}
@@ -211,7 +196,7 @@ export default function App() {
       <main className="flex-1 max-w-md w-full mx-auto px-4 pt-3 pb-24 space-y-4">
         {activeTab === 'platforms' ? (
           <>
-            {/* Multiple Banners Carousel (Unlimited banners support) */}
+            {/* Multiple Banners Carousel */}
             <BannerCarousel
               banners={banners}
               onOpenBanner={handleOpenBanner}
@@ -242,8 +227,8 @@ export default function App() {
               />
             </div>
 
-            {/* Platforms List with Crisp Icons */}
-            <div className="space-y-3">
+            {/* Platforms List with 1cm top & bottom padding and full-height icons */}
+            <div className="space-y-3.5">
               {displayedPlatforms.map((platform) => (
                 <PlatformCard
                   key={platform.id}
@@ -276,7 +261,7 @@ export default function App() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 {upcomingPlatforms.map((platform) => (
                   <PlatformCard
                     key={platform.id}
@@ -310,7 +295,7 @@ export default function App() {
         onSuccess={handlePinSuccess}
       />
 
-      {/* Admin Panel Modal (Unlimited platforms & banners, URL target choices) */}
+      {/* Admin Panel Modal */}
       <AdminPanel
         isOpen={adminPanelOpen}
         onClose={() => setAdminPanelOpen(false)}
@@ -320,7 +305,7 @@ export default function App() {
         onSignOut={handleAdminSignOut}
       />
 
-      {/* In-App Webview Browser Modal (For Internal Mode) */}
+      {/* In-App Browser Modal - Absolutely NO URL and NO external browser button */}
       <InAppBrowser
         platform={activeBrowserPlatform}
         onClose={() => setActiveBrowserPlatform(null)}

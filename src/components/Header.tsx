@@ -1,27 +1,27 @@
 import React from 'react';
-import { User, Send } from 'lucide-react';
+import { Send, User } from 'lucide-react';
 import { GbLogo } from './GbLogo';
 
 interface HeaderProps {
-  onProfileClick: () => void;
+  onLogoClick: () => void;
   adminUnlocked: boolean;
   onOpenAdmin: () => void;
   onOpenTelegram: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  onProfileClick,
+  onLogoClick,
   adminUnlocked,
   onOpenAdmin,
   onOpenTelegram,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full bg-[#090e17]/95 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-[#141e2c]">
-      {/* Left: Brand Logo & Title */}
+      {/* Top-Left: GB STUDY Brand Logo & Title - Specifically triggers admin on 6 clicks */}
       <div 
-        onClick={onProfileClick}
-        className="flex items-center gap-2.5 select-none cursor-pointer"
-        title="GB STUDY - Tap 5 times for Admin"
+        onClick={onLogoClick}
+        className="flex items-center gap-2.5 select-none cursor-pointer active:scale-95 transition"
+        title="GB STUDY"
       >
         <GbLogo className="w-10 h-10" />
         <div className="flex flex-col">
@@ -35,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right Controls: Telegram Button & Profile (5-tap admin trigger) */}
+      {/* Right Controls: Quick Telegram Button & Admin Panel (only if unlocked) */}
       <div className="flex items-center gap-2">
         {/* Quick Telegram Button */}
         <button
@@ -47,24 +47,15 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline">Telegram</span>
         </button>
 
+        {/* Admin Panel button - Only visible when unlocked after 6 clicks on top-left icon */}
         {adminUnlocked && (
           <button
             onClick={onOpenAdmin}
-            className="px-3 py-1.5 rounded-xl bg-[#0d2a33] hover:bg-[#113a47] text-[#38bdf8] border border-[#164e63] text-xs font-extrabold tracking-wide transition active:scale-95 cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-[#0d2a33] hover:bg-[#113a47] text-[#38bdf8] border border-[#164e63] text-xs font-black tracking-wide transition active:scale-95 cursor-pointer animate-in fade-in"
           >
             Admin Panel
           </button>
         )}
-
-        {/* Profile Tap Target */}
-        <button
-          onClick={onProfileClick}
-          className="w-9 h-9 rounded-full bg-[#111a24] border border-slate-700 hover:border-slate-500 flex items-center justify-center text-slate-300 hover:text-white transition active:scale-95 cursor-pointer"
-          title="Account / 5-Tap for Admin"
-          aria-label="Profile"
-        >
-          <User className="w-4 h-4" />
-        </button>
       </div>
     </header>
   );

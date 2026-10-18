@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { BookOpen, GraduationCap, Globe } from 'lucide-react';
 
 interface PlatformIconProps {
   icon?: string;
@@ -34,19 +33,19 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
 
   return (
     <div
-      className={`relative shrink-0 rounded-2xl bg-[#0f1926] border border-[#1b2b3d] p-1.5 flex items-center justify-center overflow-hidden shadow-sm ${className}`}
+      className={`relative shrink-0 rounded-2xl bg-[#0f1926] border border-[#1b2b3d] flex items-center justify-center overflow-hidden shadow-inner aspect-square ${className}`}
     >
       {isImageSrc ? (
         <img
           src={icon}
           alt={name}
-          className="w-full h-full object-contain transition duration-200"
+          className="w-full h-full object-cover block transition duration-200"
           loading="lazy"
           onError={() => setHasError(true)}
         />
       ) : (
-        <div className="w-full h-full rounded-xl bg-gradient-to-br from-[#0c2438] via-[#091827] to-[#06111c] flex items-center justify-center border border-[#164e63]/40">
-          <span className="text-xs font-black text-[#38bdf8] tracking-wider select-none">
+        <div className="w-full h-full bg-gradient-to-br from-[#0c2438] via-[#091827] to-[#06111c] flex items-center justify-center">
+          <span className="text-xl sm:text-2xl font-black text-[#38bdf8] tracking-wider select-none">
             {initials}
           </span>
         </div>
