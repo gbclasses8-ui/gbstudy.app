@@ -1,4 +1,5 @@
 import { OpenMode } from '../types';
+import { inspectUrlForShield, notifyBlockedPopup } from './popupShield';
 
 /**
  * Robust URL launcher supporting all 4 modes:
@@ -14,6 +15,14 @@ export function launchUrl(
 ): void {
   if (!url) return;
   const cleanUrl = url.trim();
+
+  // Shield check: Block unauthorized Telegram and WhatsApp URLs
+  const inspection = inspectUrlForShield(cleanUrl);
+  if (inspection.blocked && inspection.type) {
+    console.warn(`[Shield] Blocked ${inspection.type} navigation attempt: ${cleanUrl}`);
+    notifyBlockedPopup(cleanUrl, inspection.type);
+    return;
+  }
 
   // Internal mode -> InAppBrowser
   if (mode === 'internal') {
@@ -60,6 +69,14 @@ export function openExternalUrl(url: string): void {
   if (!url) return;
   const cleanUrl = url.trim();
 
+  // Shield check: Block unauthorized Telegram and WhatsApp URLs
+  const inspection = inspectUrlForShield(cleanUrl);
+  if (inspection.blocked && inspection.type) {
+    console.warn(`[Shield] Blocked ${inspection.type} external launch: ${cleanUrl}`);
+    notifyBlockedPopup(cleanUrl, inspection.type);
+    return;
+  }
+
   // 1. Try anchor click with explicit target="_blank" and rel="noopener noreferrer external"
   try {
     const link = document.createElement('a');
@@ -99,6 +116,14 @@ export function openExternalUrl(url: string): void {
 export function openNewTabUrl(url: string): void {
   if (!url) return;
   const cleanUrl = url.trim();
+
+  // Shield check: Block unauthorized Telegram and WhatsApp URLs
+  const inspection = inspectUrlForShield(cleanUrl);
+  if (inspection.blocked && inspection.type) {
+    console.warn(`[Shield] Blocked ${inspection.type} new tab launch: ${cleanUrl}`);
+    notifyBlockedPopup(cleanUrl, inspection.type);
+    return;
+  }
 
   try {
     const link = document.createElement('a');

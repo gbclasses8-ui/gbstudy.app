@@ -85,6 +85,27 @@ async function sanitizeBannerImage(rawImg?: string): Promise<string> {
 
 // ----------------- PLATFORMS ----------------- //
 
+/**
+ * Ensures whichever platform is added or edited goes to the VERY TOP (sabse upar)
+ * for both admin and users.
+ */
+export function comparePlatformsByTopPriority(a: Platform, b: Platform): number {
+  const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+  const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+
+  // If one was added or edited more recently (difference > 2.5s), it goes to the very top
+  if (Math.abs(timeA - timeB) > 2500) {
+    return timeB - timeA; // Newest first (highest position)
+  }
+
+  // If timestamps are tied (e.g. batch seed or bulk import), use order ascending
+  return (a.order ?? 9999) - (b.order ?? 9999);
+}
+
+export function sortPlatforms(platforms: Platform[]): Platform[] {
+  return [...platforms].sort(comparePlatformsByTopPriority);
+}
+
 export function subscribePlatforms(callback: (platforms: Platform[]) => void, onError?: (err: Error) => void) {
   const platformsRef = collection(db, 'platforms');
 
@@ -92,7 +113,7 @@ export function subscribePlatforms(callback: (platforms: Platform[]) => void, on
     if (snapshot.empty) {
       seedVideoPlatformsIfEmpty().then((seeded) => {
         if (!seeded) {
-          callback(VIDEO_PLATFORMS);
+          callback(sortPlatforms(VIDEO_PLATFORMS));
         }
       });
       return;
@@ -101,9 +122,8 @@ export function subscribePlatforms(callback: (platforms: Platform[]) => void, on
     snapshot.forEach((docSnap) => {
       items.push({ id: docSnap.id, ...(docSnap.data() as Omit<Platform, 'id'>) });
     });
-    // In-memory sort by order safely
-    items.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
-    callback(items);
+    // Newly added or edited platforms appear at the VERY TOP for both admin and user
+    callback(sortPlatforms(items));
   }, (error) => {
     console.error('Error subscribing to platforms:', error);
     try {
@@ -111,7 +131,7 @@ export function subscribePlatforms(callback: (platforms: Platform[]) => void, on
     } catch (e: any) {
       onError?.(e);
     }
-    callback(VIDEO_PLATFORMS);
+    callback(sortPlatforms(VIDEO_PLATFORMS));
   });
 }
 
@@ -121,6 +141,8 @@ export async function seedVideoPlatformsIfEmpty(): Promise<boolean> {
     if (snap.size > 0) return false;
 
     const batch = writeBatch(db);
+    // Baseline timestamp for seed platforms
+    const seedTime = '2024-01-01T00:00:00.000Z';
     for (const p of VIDEO_PLATFORMS) {
       const ref = doc(db, 'platforms', p.id);
       batch.set(ref, {
@@ -129,10 +151,10 @@ export async function seedVideoPlatformsIfEmpty(): Promise<boolean> {
         description: p.description,
         icon: p.icon || '',
         status: p.status || 'active',
-        openMode: p.openMode || 'new_tab',
+        openMode: p.openMode || 'internal',
         order: p.order,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: seedTime,
+        updatedAt: seedTime,
       });
     }
     await batch.commit();
@@ -148,14 +170,15 @@ export async function addPlatform(platform: Omit<Platform, 'id'>): Promise<strin
   const docRef = doc(db, 'platforms', cleanId);
   try {
     const icon = await sanitizeIcon(platform.icon);
+    const now = new Date().toISOString();
 
     const payload = {
       ...platform,
       icon,
-      openMode: platform.openMode || 'new_tab',
-      order: typeof platform.order === 'number' ? platform.order : Date.now(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      openMode: platform.openMode || 'internal',
+      order: 0, // Top priority order
+      createdAt: now,
+      updatedAt: now,
     };
 
     if (!isSafeFirestorePayload(payload)) {
@@ -180,6 +203,7 @@ export async function updatePlatform(id: string, data: Partial<Platform>): Promi
 
     const payload: any = {
       ...data,
+      order: 0, // Sent directly to top upon edit
       updatedAt: new Date().toISOString(),
     };
     if (icon !== undefined) {
@@ -191,6 +215,22 @@ export async function updatePlatform(id: string, data: Partial<Platform>): Promi
     }
 
     await updateDoc(docRef, payload);
+  } catch (error: any) {
+    handleFirestoreError(error, OperationType.UPDATE, `platforms/${id}`);
+    throw error;
+  }
+}
+
+/**
+ * 1-click action to move any platform to the VERY TOP immediately
+ */
+export async function movePlatformToTop(id: string): Promise<void> {
+  const docRef = doc(db, 'platforms', id);
+  try {
+    await updateDoc(docRef, {
+      order: 0,
+      updatedAt: new Date().toISOString(),
+    });
   } catch (error: any) {
     handleFirestoreError(error, OperationType.UPDATE, `platforms/${id}`);
     throw error;

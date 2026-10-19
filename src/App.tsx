@@ -12,12 +12,19 @@ import { SplashScreen } from './components/SplashScreen';
 import { Header } from './components/Header';
 import { PlatformCard } from './components/PlatformCard';
 import { BottomNav, VideoTab } from './components/BottomNav';
+import { ShieldAlert } from 'lucide-react';
 import { TelegramModal } from './components/TelegramModal';
 import { AdminPanel } from './components/AdminPanel';
 import { AdminPinModal } from './components/AdminPinModal';
 import { InAppBrowser } from './components/InAppBrowser';
 import { BannerCarousel } from './components/BannerCarousel';
 import { launchUrl } from './lib/urlLauncher';
+import { 
+  initPopupShield, 
+  BLOCKED_POPUP_EVENT, 
+  BlockedPopupDetail, 
+  ALLOWED_OFFICIAL_TELEGRAM 
+} from './lib/popupShield';
 
 export default function App() {
   // Splash Screen State
@@ -46,8 +53,33 @@ export default function App() {
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
+  // Blocked unauthorized Telegram/WhatsApp popup toast state
+  const [blockedPopupDetail, setBlockedPopupDetail] = useState<BlockedPopupDetail | null>(null);
+
   const tapCountRef = useRef(0);
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize Popup Shield: strictly blocks all unauthorized Telegram & WhatsApp popups
+  useEffect(() => {
+    initPopupShield(() => config.telegramUrl || ALLOWED_OFFICIAL_TELEGRAM);
+
+    const handleBlockedPopup = (e: Event) => {
+      const customEvent = e as CustomEvent<BlockedPopupDetail>;
+      if (customEvent.detail) {
+        setBlockedPopupDetail(customEvent.detail);
+        setTimeout(() => {
+          setBlockedPopupDetail((prev) =>
+            prev?.timestamp === customEvent.detail.timestamp ? null : prev
+          );
+        }, 4000);
+      }
+    };
+
+    window.addEventListener(BLOCKED_POPUP_EVENT, handleBlockedPopup);
+    return () => {
+      window.removeEventListener(BLOCKED_POPUP_EVENT, handleBlockedPopup);
+    };
+  }, [config.telegramUrl]);
 
   // Test Firestore connection on load safely
   useEffect(() => {
@@ -184,6 +216,28 @@ export default function App() {
       {showToast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#162231] text-white text-xs font-semibold px-4 py-2 rounded-full border border-slate-700 shadow-2xl animate-in fade-in slide-in-from-top duration-200">
           Admin option unlocked
+        </div>
+      )}
+
+      {/* Floating Notification: Blocked Unauthorized Telegram / WhatsApp Popup */}
+      {blockedPopupDetail && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] max-w-sm w-[92%] bg-[#1a080b] text-white text-xs font-semibold px-4 py-3 rounded-2xl border border-rose-600/70 shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top duration-200">
+          <div className="w-8 h-8 rounded-xl bg-rose-950 border border-rose-800/80 flex items-center justify-center shrink-0">
+            <ShieldAlert className="w-4 h-4 text-rose-400" />
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold text-rose-300 text-xs">
+                {blockedPopupDetail.type === 'whatsapp' ? 'WhatsApp' : 'Other Telegram'} Blocked
+              </span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-950 text-rose-300 font-bold uppercase tracking-wider border border-rose-800/60">
+                Blocked
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-tight mt-0.5">
+              Sirf official GB STUDY Telegram (t.me/GBFreestudy) allowed hai.
+            </p>
+          </div>
         </div>
       )}
 

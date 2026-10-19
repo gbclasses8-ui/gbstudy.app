@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { 
   X, Plus, Upload, Download, Image as ImageIcon, ExternalLink, LogOut, 
   Trash2, Edit, Check, AlertCircle, Compass, AppWindow, Globe,
-  Sparkles, Layers, RefreshCw, Eye
+  Sparkles, Layers, RefreshCw, Eye, ArrowUpToLine
 } from 'lucide-react';
 import { Platform, AppConfig, ImportSummary, OpenMode, Banner } from '../types';
 import { 
-  addPlatform, updatePlatform, deletePlatform, updateConfig, 
+  addPlatform, updatePlatform, movePlatformToTop, deletePlatform, updateConfig, 
   bulkImportPlatforms, parseCSVPlatforms,
   addBanner, updateBanner, deleteBanner 
 } from '../services/dbService';
@@ -111,6 +111,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return p.name.toLowerCase().includes(q) || p.url.toLowerCase().includes(q);
   });
 
+  const [topActionLoadingId, setTopActionLoadingId] = useState<string | null>(null);
+
+  // 1-click move any platform to the very top (sabse upar)
+  const handleMoveToTop = async (id: string, name: string) => {
+    setTopActionLoadingId(id);
+    try {
+      await movePlatformToTop(id);
+    } catch (err: any) {
+      alert(`Failed to move to top: ${err.message}`);
+    } finally {
+      setTopActionLoadingId(null);
+    }
+  };
+
   // Open Add modal
   const handleOpenAdd = () => {
     setPlatformForm({
@@ -121,7 +135,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       status: 'active',
       openMode: 'internal',
       isUpcoming: false,
-      order: platforms.length + 1,
+      order: 0,
     });
     setIconInfo('');
     setEditingPlatform(null);
@@ -139,7 +153,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       status: p.status,
       openMode: p.openMode || 'internal',
       isUpcoming: p.status === 'upcoming',
-      order: p.order ?? platforms.length + 1,
+      order: 0,
     });
     setIconInfo(p.icon ? (p.icon.startsWith('data:') ? 'Custom uploaded icon' : 'Image URL') : '');
     setAddModalOpen(true);
@@ -166,7 +180,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Handle Save Platform
+  // Handle Save Platform - Automatically places platform at the VERY TOP for both user and admin
   const handleSavePlatform = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!platformForm.name.trim() || !platformForm.url.trim()) {
@@ -188,6 +202,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         icon = await compressImage(icon, 128, 128, 0.7);
       }
 
+      const now = new Date().toISOString();
       const payload: Omit<Platform, 'id'> = {
         name: platformForm.name.trim(),
         description: platformForm.description.trim() || 'Open platform to explore content.',
@@ -195,7 +210,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         icon,
         status: platformForm.isUpcoming ? 'upcoming' : 'active',
         openMode: platformForm.openMode || 'internal',
-        order: Number(platformForm.order) || (editingPlatform ? editingPlatform.order : platforms.length + 1),
+        order: 0, // Highest priority: goes directly to the very top (sabse upar)
+        updatedAt: now,
       };
 
       if (editingPlatform) {
@@ -479,6 +495,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             />
           </div>
 
+          {/* Auto-Top Priority Setting Status */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#081e18] border border-[#14532d]/60 text-[11px] text-[#34d399] shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse shrink-0" />
+              <span className="font-bold">Auto-Top Active:</span>
+              <span className="text-slate-300">Joda / Edit kiya gaya platform sabse upar (#1) chala jayega</span>
+            </div>
+            <span className="text-[10px] uppercase font-extrabold tracking-wider bg-[#10b981]/20 text-[#34d399] px-2 py-0.5 rounded-full">
+              Live
+            </span>
+          </div>
+
           {/* Platform List in Admin */}
           <div className="space-y-3">
             {filteredPlatforms.map((p) => (
@@ -515,6 +543,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 {/* Right Action Buttons */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleMoveToTop(p.id, p.name)}
+                    disabled={topActionLoadingId === p.id}
+                    className="px-2.5 py-1.5 rounded-xl bg-[#092b1e] hover:bg-[#0e3d2b] text-[#34d399] font-bold text-[11px] transition cursor-pointer flex items-center gap-1 border border-[#14532d]/40"
+                    title="Is platform ko sabse upar le jayein (Move to Top)"
+                  >
+                    <ArrowUpToLine className={`w-3 h-3 ${topActionLoadingId === p.id ? 'animate-bounce' : ''}`} />
+                    <span>Top</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(p)}
@@ -563,6 +601,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               >
                 <X className="w-4 h-4" />
               </button>
+            </div>
+
+            <div className="mb-3 p-2.5 rounded-xl bg-[#081e18] border border-[#14532d] text-[#34d399] text-[11px] flex items-center gap-2">
+              <span className="text-sm">🔝</span>
+              <span>Yeh platform save hote hi student aur admin dono ke liye <strong>sabse upar (#1 Position)</strong> par chala jayega.</span>
             </div>
 
             <form onSubmit={handleSavePlatform} className="space-y-3.5 text-xs">
